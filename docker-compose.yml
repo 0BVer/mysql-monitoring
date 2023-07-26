@@ -24,8 +24,6 @@ services:
             - '--collect.engine_innodb_status'
             - '--web.listen-address=0.0.0.0:9104'
             - '--config.my-cnf=/root/.my.cnf'
-        environment:
-            - DATA_SOURCE_NAME=root:root-password@(mysql-server:3306)/
         ports:
             - '9104:9104'
         depends_on:
