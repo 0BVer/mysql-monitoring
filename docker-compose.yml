@@ -1,0 +1,66 @@
+version: '3.7'
+
+services:
+    # MySQL Server
+    mysql-server:
+        image: mysql:latest
+        container_name: mysql-server
+        restart: always
+        environment:
+            MYSQL_ROOT_PASSWORD: root-password  # Change this password!
+        volumes:
+            - mysql-data:/var/lib/mysql
+        ports:
+            - '3306:3306'
+            
+    # MySQL Exporter to collect metrics from MySQL
+    mysqld-exporter:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        command:
+            - '--collect.global_status'
+            - '--collect.info_schema.tables'
+            - '--collect.engine_innodb_status'
+            - '--web.listen-address=0.0.0.0:9104'
+            - '--config.my-cnf=/root/.my.cnf'
+        environment:
+            - DATA_SOURCE_NAME=root:root-password@(mysql-server:3306)/
+        ports:
+            - '9104:9104'
+        depends_on:
+            - mysql-server
+        volumes:
+            - .my.cnf:/root/.my.cnf
+
+    # Prometheus to store and query metrics
+    prometheus:
+        image: prom/prometheus
+        volumes:
+            - ./prometheus:/etc/prometheus
+        command:
+            - '--config.file=/etc/prometheus/prometheus.yml'
+        ports:
+            - '9090:9090'
+        depends_on:
+            - mysqld-exporter
+
+    # Grafana for visualization
+    grafana:
+        image: grafana/grafana
+        ports:
+            - '3000:3000'
+        depends_on:
+            - prometheus
+        environment:
+            - GF_SECURITY_ADMIN_USER=admin
+            - GF_SECURITY_ADMIN_PASSWORD=admin-password  # Change this password!
+            - GF_USERS_ALLOW_SIGN_UP=false
+            - GF_USERS_ALLOW_ORG_CREATE=false
+            - GF_AUTH_ANONYMOUS_ENABLED=true
+            - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+        volumes:
+            - ./grafana:/var/lib/grafana
+
+volumes:
+    mysql-data:
